@@ -1,0 +1,6 @@
+{
+  "name": "LuxeGrocer & Goods - Modern E-Commerce Platform",
+  "description": "Modern, mobile-first e-commerce web application featuring dynamic product variants, interactive multi-media carousels, responsive customer storefront, and a complete admin management suite.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,150 @@
+{
+  "entities": {
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Global storefront configuration and contact settings",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string" },
+        "tagline": { "type": "string" },
+        "description": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "whatsappNumber": { "type": "string" },
+        "enableCallButton": { "type": "boolean" },
+        "enableWhatsappButton": { "type": "boolean" },
+        "currencySymbol": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["storeName", "contactPhone", "enableCallButton", "enableWhatsappButton"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Product category metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "image": { "type": "string" },
+        "icon": { "type": "string" },
+        "order": { "type": "number" },
+        "enabled": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "slug", "enabled"]
+    },
+    "Banner": {
+      "title": "Banner",
+      "description": "Promotional carousel banner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "image": { "type": "string" },
+        "linkType": { "type": "string", "enum": ["category", "product", "external", "none"] },
+        "linkTarget": { "type": "string" },
+        "order": { "type": "number" },
+        "enabled": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["image", "enabled", "order"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Dynamic product with flexible variants and multi-media",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "categoryName": { "type": "string" },
+        "price": { "type": "number" },
+        "oldPrice": { "type": "number" },
+        "discount": { "type": "number" },
+        "description": { "type": "string" },
+        "media": { "type": "array" },
+        "colours": { "type": "array" },
+        "sizes": { "type": "array" },
+        "kgWeights": { "type": "array" },
+        "combos": { "type": "array" },
+        "customVariants": { "type": "array" },
+        "stock": { "type": "number" },
+        "inStock": { "type": "boolean" },
+        "isFeatured": { "type": "boolean" },
+        "enabled": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "price", "categoryId", "enabled"]
+    },
+    "DeliveryOption": {
+      "title": "DeliveryOption",
+      "description": "Admin configurable shipping and delivery speeds",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "charge": { "type": "number" },
+        "estimatedDays": { "type": "string" },
+        "order": { "type": "number" },
+        "enabled": { "type": "boolean" }
+      },
+      "required": ["name", "charge", "enabled"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase order with historical snapshot",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderNumber": { "type": "string" },
+        "customerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "optionalAddress": { "type": "string" },
+        "items": { "type": "array" },
+        "deliveryOption": { "type": "object" },
+        "subtotal": { "type": "number" },
+        "deliveryCharge": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "status": {
+          "type": "string",
+          "enum": ["new", "confirmed", "processing", "out_for_delivery", "delivered", "cancelled"]
+        },
+        "createdAt": { "type": "string" },
+        "createdAtTime": { "type": "string" },
+        "dateString": { "type": "string" }
+      },
+      "required": ["orderNumber", "customerName", "phone", "address", "items", "totalAmount", "status"]
+    }
+  },
+  "firestore": {
+    "/settings/global": {
+      "schema": "StoreSettings",
+      "description": "Global storefront settings document"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Product categories"
+    },
+    "/banners/{bannerId}": {
+      "schema": "Banner",
+      "description": "Promotional auto-sliding banners"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Catalog of products with dynamic variants"
+    },
+    "/deliveryOptions/{optionId}": {
+      "schema": "DeliveryOption",
+      "description": "Available delivery methods and charges"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders"
+    }
+  }
+}

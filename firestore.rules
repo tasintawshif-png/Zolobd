@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Public settings - storefront branding, contacts, configurations
+    match /settings/{docId} {
+      allow read, write: if true;
+    }
+
+    // Categories - storefront categories
+    match /categories/{categoryId} {
+      allow read, write: if true;
+    }
+
+    // Banners - promotional banners
+    match /banners/{bannerId} {
+      allow read, write: if true;
+    }
+
+    // Products - catalog items
+    match /products/{productId} {
+      allow read, write: if true;
+    }
+
+    // Delivery Options - shipping methods
+    match /deliveryOptions/{optionId} {
+      allow read, write: if true;
+    }
+
+    // Orders - customer checkouts and admin order management
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+  }
+}
+
