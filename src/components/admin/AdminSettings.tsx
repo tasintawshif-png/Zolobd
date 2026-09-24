@@ -279,15 +279,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-bold">Master Password:</span>
-                  <span className="font-mono font-bold text-slate-800 bg-white border border-slate-200 px-2.5 py-0.5 rounded-lg">
-                    12111209
+                  <span className="text-slate-500 font-bold">Access Credentials:</span>
+                  <span className="text-slate-500 font-mono text-[11px] bg-white border border-slate-200 px-2.5 py-0.5 rounded-lg">
+                    Protected & Hidden
                   </span>
-                </div>
-
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-bold">Security Level:</span>
-                  <span className="text-slate-700 font-medium">Server-side SHA-256</span>
                 </div>
               </div>
 
