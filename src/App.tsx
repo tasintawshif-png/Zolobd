@@ -26,6 +26,8 @@ import {
   deleteBanner,
   reorderBanners,
   updateOrderStatus,
+  deleteOrder,
+  deleteAllOrders,
   saveDeliveryOption,
   deleteDeliveryOption,
   reorderDeliveryOptions,
@@ -294,6 +296,11 @@ export function App() {
             orders={orders}
             currencySymbol={settings.currencySymbol || '$'}
             onExportExcel={() => exportOrdersToExcel(orders, `AllOrders_${Date.now()}.xlsx`, settings.currencySymbol || '$')}
+            onDeleteOrder={async (id) => await deleteOrder(id)}
+            onDeleteMultipleOrders={async (ids) => {
+              await Promise.all(ids.map(id => deleteOrder(id)));
+            }}
+            onDeleteAllOrders={async () => await deleteAllOrders()}
           />
         )}
 
