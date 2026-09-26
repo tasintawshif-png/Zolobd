@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Zap, Eye, Play } from 'lucide-react';
+import { ShoppingBag, Zap, Eye, Play, Link2, Check, Copy } from 'lucide-react';
 import { Product } from '../../types';
+import { getProductPath, copyProductLinkToClipboard } from '../../services/urlService';
 
 interface ProductCardProps {
   product: Product;
@@ -20,6 +21,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const mediaList = product.media && product.media.length > 0 ? product.media : [];
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Auto-slide images and videos on the card
   useEffect(() => {
@@ -35,22 +37,44 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const currentMedia = mediaList[currentMediaIndex] || mediaList[0];
   const hasVideo = mediaList.some((m) => m.type === 'video');
 
-  // Calculate discount percentage if not explicitly provided but oldPrice exists
+  // Calculate discount percentage
   const discountPercent =
     product.discount ||
     (product.oldPrice && product.oldPrice > product.price
       ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
       : null);
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // If user clicked with Ctrl/Cmd or middle click, allow browser to open in new tab naturally
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) {
+      return;
+    }
+    e.preventDefault();
+    onOpenDetails(product);
+  };
+
+  const handleCopyAdLink = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const success = await copyProductLinkToClipboard(product.id);
+    if (success) {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2200);
+    }
+  };
+
+  const productHref = getProductPath(product.id);
+
   return (
-    <div
-      onClick={() => onOpenDetails(product)}
+    <a
+      href={productHref}
+      onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="group bg-white rounded-xl sm:rounded-2xl p-2 sm:p-3.5 border border-slate-100 hover:border-emerald-200/90 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between cursor-pointer relative overflow-hidden active:scale-[0.99]"
+      className="group bg-white rounded-xl sm:rounded-2xl p-2 sm:p-3.5 border border-slate-100 hover:border-emerald-200/90 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between cursor-pointer relative overflow-hidden active:scale-[0.99] text-inherit no-underline block"
     >
       <div>
-        {/* Top Badges */}
+        {/* Top Badges & Copy Ad Link Button */}
         <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 flex flex-col gap-1 items-start pointer-events-none">
           {product.isCombo ? (
             <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold text-[8px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-xs flex items-center gap-0.5">
@@ -72,12 +96,33 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           )}
         </div>
 
-        {/* Video Indicator Badge */}
-        {hasVideo && (
-          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 bg-slate-900/75 backdrop-blur-xs text-white p-1 sm:p-1.5 rounded-full shadow-xs pointer-events-none">
-            <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-white" />
-          </div>
-        )}
+        {/* Quick Action Top-Right: Copy FB Ad Link & Video Indicator */}
+        <div className="absolute top-2.5 right-2.5 sm:top-3.5 sm:right-3.5 z-20 flex items-center gap-1">
+          {hasVideo && (
+            <div className="bg-slate-900/75 backdrop-blur-xs text-white p-1 sm:p-1.5 rounded-full shadow-xs pointer-events-none">
+              <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-white" />
+            </div>
+          )}
+
+          {/* Copy Direct FB Ad Link Button */}
+          <button
+            onClick={handleCopyAdLink}
+            className={`p-1.5 rounded-full backdrop-blur-md transition-all shadow-xs cursor-pointer relative ${
+              copiedLink
+                ? 'bg-emerald-600 text-white'
+                : 'bg-white/90 hover:bg-white text-slate-700 hover:text-emerald-700 border border-slate-200/80 sm:opacity-0 group-hover:opacity-100'
+            }`}
+            title="Copy Product Link for Facebook Ads"
+            aria-label="Copy Product Link for Facebook Ads"
+          >
+            {copiedLink ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+            {copiedLink && (
+              <span className="absolute -bottom-7 right-0 bg-slate-900 text-white text-[9px] px-1.5 py-0.5 rounded shadow whitespace-nowrap z-30 pointer-events-none">
+                Ad Link Copied!
+              </span>
+            )}
+          </button>
+        </div>
 
         {/* Product Image / Video Container with Auto-slide */}
         <div className="relative w-full aspect-square bg-slate-50 rounded-lg sm:rounded-xl overflow-hidden mb-2 group-hover:bg-emerald-50/20 transition-colors">
@@ -132,16 +177,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Quick View Hover Pill (Desktop) */}
           <div className="hidden sm:flex absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center pointer-events-none">
-            <span className="bg-white/90 backdrop-blur-xs text-slate-800 font-bold text-xs px-2.5 py-1 rounded-full shadow-md flex items-center gap-1 transform translate-y-2 group-hover:translate-y-0 transition-transform">
-              <Eye className="w-3 h-3 text-emerald-600" />
-              View
+            <span className="bg-white/95 backdrop-blur-xs text-slate-800 font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform">
+              <Eye className="w-3.5 h-3.5 text-emerald-600" />
+              <span>View Product</span>
             </span>
           </div>
         </div>
 
         {/* Category Name if present */}
         {product.categoryName && (
-          <span className="text-[9px] sm:text-[10px] font-bold text-emerald-700 tracking-wide uppercase line-clamp-1 mb-0.5">
+          <span className="text-[9px] sm:text-[10px] font-bold text-emerald-700 tracking-wide uppercase line-clamp-1 mb-0.5 block">
             {product.categoryName}
           </span>
         )}
@@ -176,7 +221,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {product.isCombo ? (
           <div className="mt-2 pt-1.5 border-t border-slate-100 space-y-1">
             <div className="flex items-center justify-between text-[10px] sm:text-xs">
-              <span className="text-slate-500">Regular Price:</span>
+              <span className="text-slate-500">Regular:</span>
               <span className="text-slate-400 line-through font-semibold">
                 {currencySymbol}{(product.regularPrice || product.oldPrice || product.price).toFixed(2)}
               </span>
@@ -189,7 +234,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
             {product.savingsAmount ? (
               <div className="flex items-center justify-between bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/60 text-[9px] sm:text-[10px] font-bold text-emerald-800">
-                <span>You Save:</span>
+                <span>Save:</span>
                 <span>{currencySymbol}{product.savingsAmount.toFixed(2)}</span>
               </div>
             ) : null}
@@ -256,6 +301,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </a>
   );
 };

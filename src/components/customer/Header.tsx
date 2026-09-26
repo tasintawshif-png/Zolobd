@@ -7,13 +7,15 @@ interface HeaderProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onOpenAdmin: () => void;
+  onLogoClick?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   storeName,
   searchQuery,
   onSearchChange,
-  onOpenAdmin
+  onOpenAdmin,
+  onLogoClick
 }) => {
   const { cartCount, setIsCartOpen } = useCart();
 
@@ -23,7 +25,10 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between h-16 sm:h-20 gap-3 sm:gap-6">
           
           {/* Brand / Store Name */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div
+            onClick={onLogoClick}
+            className={`flex items-center gap-2 sm:gap-3 flex-shrink-0 ${onLogoClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+          >
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-green-500 flex items-center justify-center text-white shadow-md shadow-emerald-600/20">
               <span className="font-black text-xl sm:text-2xl tracking-tighter">
                 {storeName.charAt(0) || 'L'}

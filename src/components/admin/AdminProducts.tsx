@@ -13,10 +13,13 @@ import {
   Check,
   Star,
   Layers,
-  Sparkles
+  Sparkles,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { Product, Category, ProductMediaItem, ProductCombo, CustomVariant } from '../../types';
 import { AdminComboModal } from './AdminComboModal';
+import { copyProductLinkToClipboard } from '../../services/urlService';
 
 interface AdminProductsProps {
   products: Product[];
@@ -42,6 +45,15 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   // Combo Creator Modal State
   const [isComboModalOpen, setIsComboModalOpen] = useState(false);
   const [editingCombo, setEditingCombo] = useState<Product | null>(null);
+  const [copiedProductId, setCopiedProductId] = useState<string | null>(null);
+
+  const handleCopyAdLink = async (productId: string) => {
+    const success = await copyProductLinkToClipboard(productId);
+    if (success) {
+      setCopiedProductId(productId);
+      setTimeout(() => setCopiedProductId(null), 2000);
+    }
+  };
 
   // Form State
   const [name, setName] = useState('');
@@ -542,6 +554,35 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
 
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Copy Link for Facebook Ads */}
+                          <button
+                            onClick={() => handleCopyAdLink(p.id)}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer relative ${
+                              copiedProductId === p.id
+                                ? 'bg-emerald-600 text-white'
+                                : 'hover:bg-emerald-50 text-slate-400 hover:text-emerald-700'
+                            }`}
+                            title="Copy Direct Link for Facebook Ads"
+                          >
+                            {copiedProductId === p.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                            {copiedProductId === p.id && (
+                              <span className="absolute -top-7 right-0 bg-slate-900 text-white text-[10px] px-1.5 py-0.5 rounded shadow whitespace-nowrap z-20">
+                                Copied!
+                              </span>
+                            )}
+                          </button>
+
+                          {/* View in Store (New Tab) */}
+                          <a
+                            href={`/?product=${encodeURIComponent(p.id)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg transition-colors"
+                            title="Open Product in Store (New Tab)"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+
                           <button
                             onClick={() => p.isCombo ? openEditComboModal(p) : openEditModal(p)}
                             className="p-1.5 hover:bg-slate-100 text-slate-600 hover:text-emerald-700 rounded-lg transition-colors cursor-pointer"

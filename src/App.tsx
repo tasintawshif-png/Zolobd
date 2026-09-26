@@ -43,12 +43,13 @@ import { Header } from './components/customer/Header';
 import { BannerCarousel } from './components/customer/BannerCarousel';
 import { CategoryBar } from './components/customer/CategoryBar';
 import { ProductCard } from './components/customer/ProductCard';
-import { ProductDetailModal } from './components/customer/ProductDetailModal';
+import { ProductDetailPage } from './components/customer/ProductDetailPage';
 import { CartDrawer } from './components/customer/CartDrawer';
 import { CheckoutModal } from './components/customer/CheckoutModal';
 import { OrderSuccessModal } from './components/customer/OrderSuccessModal';
 import { FloatingContactButtons } from './components/customer/FloatingContactButtons';
 import { ProductSkeleton, BannerSkeleton } from './components/common/SkeletonLoader';
+import { getProductIdFromUrl, updateProductHistoryUrl, updateProductSeo } from './services/urlService';
 
 // Admin Components
 import { AdminLogin } from './components/admin/AdminLogin';
@@ -90,12 +91,22 @@ export function App() {
   // Customer UI State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [detailModalProduct, setDetailModalProduct] = useState<Product | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(() => getProductIdFromUrl());
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutItems, setCheckoutItems] = useState<CartItem[]>([]);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
 
   const { cartItems, addToCart, clearPurchasedItems, setIsCartOpen } = useCart();
+
+  // Listen for browser Back/Forward (popstate) navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const id = getProductIdFromUrl();
+      setSelectedProductId(id);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Initialize DB seeding and Real-Time Listeners
   useEffect(() => {
@@ -126,22 +137,47 @@ export function App() {
     };
   }, []);
 
-  // Sync page title with store name
+  // Dynamic SEO and Title synchronization for products & storefront
   useEffect(() => {
+    if (selectedProductId) {
+      const prod = products.find(p => p.id === selectedProductId);
+      if (prod) {
+        updateProductSeo(prod, settings.storeName, settings.currencySymbol || '$');
+      }
+    } else if (settings.storeName) {
+      document.title = `${settings.storeName} - Premium Groceries & Goods`;
+    }
+  }, [selectedProductId, products, settings.storeName, settings.currencySymbol]);
+
+  // Product Navigation Handlers
+  const handleOpenProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    updateProductHistoryUrl(productId);
+    const prod = products.find(p => p.id === productId);
+    if (prod) {
+      updateProductSeo(prod, settings.storeName, settings.currencySymbol || '$');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBackToStore = () => {
+    setSelectedProductId(null);
+    updateProductHistoryUrl(null);
     if (settings.storeName) {
       document.title = `${settings.storeName} - Premium Groceries & Goods`;
     }
-  }, [settings.storeName]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-  // Handle banner clicks (e.g. jump to category)
+  // Handle banner clicks (e.g. jump to category or product)
   const handleBannerClick = (banner: Banner) => {
     if (banner.linkType === 'category' && banner.targetId) {
+      handleBackToStore();
       setSelectedCategoryId(banner.targetId);
       const el = document.getElementById('products-section');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
     } else if (banner.linkType === 'product' && banner.targetId) {
-      const prod = products.find(p => p.id === banner.targetId);
-      if (prod) setDetailModalProduct(prod);
+      handleOpenProduct(banner.targetId);
     }
   };
 
@@ -167,26 +203,24 @@ export function App() {
     }
 
     // For regular products, navigate customer inside product details page
-    setDetailModalProduct(product);
+    handleOpenProduct(product.id);
   };
 
   // Direct Card Buy Now
   const handleCardBuyNow = (product: Product, e: React.MouseEvent) => {
     e.stopPropagation();
     // For regular products, navigate customer inside product details page
-    setDetailModalProduct(product);
+    handleOpenProduct(product.id);
   };
 
-  // Modal Add To Cart
-  const handleModalAddToCart = (item: CartItem) => {
+  // Product Page Add To Cart
+  const handleProductAddToCart = (item: CartItem) => {
     addToCart(item);
-    setDetailModalProduct(null);
     setIsCartOpen(true);
   };
 
-  // Modal Buy Now
-  const handleModalBuyNow = (item: CartItem) => {
-    setDetailModalProduct(null);
+  // Product Page Buy Now
+  const handleProductBuyNow = (item: CartItem) => {
     setCheckoutItems([item]);
     setIsCheckoutOpen(true);
   };
@@ -345,6 +379,9 @@ export function App() {
     );
   }
 
+  // Selected Product for Dedicated Page View
+  const selectedProduct = selectedProductId ? products.find((p) => p.id === selectedProductId) : null;
+
   // Render Customer View
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col selection:bg-emerald-200 selection:text-emerald-900">
@@ -353,155 +390,196 @@ export function App() {
       <Header
         storeName={settings.storeName}
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={(q) => {
+          setSearchQuery(q);
+          if (selectedProductId) {
+            handleBackToStore();
+          }
+        }}
         onOpenAdmin={() => setAppMode('admin')}
+        onLogoClick={handleBackToStore}
       />
 
-      {/* Main Content */}
-      <main className="flex-1 pb-24">
-        
-        {/* Banner Carousel */}
-        {isLoading ? (
-          <div className="max-w-7xl mx-auto px-4 mt-6">
-            <BannerSkeleton />
+      {/* Main Content Area: Dedicated Product Page or Store Catalog */}
+      {selectedProductId ? (
+        isLoading ? (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-1 w-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="h-80 bg-slate-200 animate-pulse rounded-3xl" />
+              <div className="space-y-4">
+                <div className="h-8 bg-slate-200 animate-pulse rounded-xl w-3/4" />
+                <div className="h-6 bg-slate-200 animate-pulse rounded-xl w-1/3" />
+                <div className="h-24 bg-slate-200 animate-pulse rounded-2xl" />
+                <div className="h-12 bg-slate-200 animate-pulse rounded-2xl" />
+              </div>
+            </div>
           </div>
-        ) : (
-          <BannerCarousel
-            banners={banners}
-            onBannerClick={handleBannerClick}
+        ) : selectedProduct ? (
+          <ProductDetailPage
+            product={selectedProduct}
+            allProducts={products}
+            settings={settings}
+            deliveryOptions={deliveryOptions}
+            currencySymbol={settings.currencySymbol || '$'}
+            onBackToStore={handleBackToStore}
+            onOpenProduct={(p) => handleOpenProduct(p.id)}
+            onAddToCart={handleProductAddToCart}
+            onBuyNow={handleProductBuyNow}
           />
-        )}
-
-        {/* Categories Bar */}
-        <CategoryBar
-          categories={categories}
-          selectedCategoryId={selectedCategoryId}
-          onSelectCategory={(id) => setSelectedCategoryId(id)}
-        />
-
-        {/* Products Grid Section */}
-        <section id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 sm:mt-12">
-          <div className="flex items-baseline justify-between mb-4 sm:mb-6">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                {selectedCategoryId
-                  ? categories.find(c => c.id === selectedCategoryId)?.name || 'Category Goods'
-                  : 'Handcrafted Goods & Harvest'}
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                {searchQuery
-                  ? `Showing results for "${searchQuery}" (${activeProducts.length} items)`
-                  : 'Freshly harvested daily and delivered to your doorstep'}
-              </p>
+        ) : (
+          <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-3xl border border-slate-200 text-center shadow-xs">
+            <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mx-auto mb-3 text-2xl font-bold">
+              !
             </div>
-            <span className="text-xs font-bold text-emerald-800 bg-emerald-100/80 px-3 py-1 rounded-full">
-              {activeProducts.length} items
-            </span>
+            <h2 className="text-lg font-bold text-slate-800">Product Not Found</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              This product may have been moved or removed from our catalog.
+            </p>
+            <button
+              onClick={handleBackToStore}
+              className="mt-6 px-6 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/25 transition-all cursor-pointer"
+            >
+              Browse All Products
+            </button>
           </div>
-
-          {isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-              {[...Array(8)].map((_, i) => (
-                <ProductSkeleton key={i} />
-              ))}
-            </div>
-          ) : activeProducts.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs max-w-md mx-auto my-8">
-              <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
-                <span className="text-2xl">🌱</span>
+        )
+      ) : (
+        <>
+          {/* Main Storefront Content */}
+          <main className="flex-1 pb-24">
+            
+            {/* Banner Carousel */}
+            {isLoading ? (
+              <div className="max-w-7xl mx-auto px-4 mt-6">
+                <BannerSkeleton />
               </div>
-              <h3 className="text-base font-bold text-slate-800">No products found</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Try clearing your search or switching to another category.
-              </p>
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedCategoryId(null);
-                }}
-                className="mt-5 px-5 py-2 rounded-full bg-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-600/20"
-              >
-                Show All Goods
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-              {activeProducts.map((prod) => (
-                <ProductCard
-                  key={prod.id}
-                  product={prod}
-                  currencySymbol={settings.currencySymbol || '$'}
-                  onOpenDetails={(p) => setDetailModalProduct(p)}
-                  onAddToCart={handleCardAddToCart}
-                  onBuyNow={handleCardBuyNow}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+            ) : (
+              <BannerCarousel
+                banners={banners}
+                onBannerClick={handleBannerClick}
+              />
+            )}
 
-      </main>
+            {/* Categories Bar */}
+            <CategoryBar
+              categories={categories}
+              selectedCategoryId={selectedCategoryId}
+              onSelectCategory={(id) => setSelectedCategoryId(id)}
+            />
 
-      {/* Customer Footer */}
-      <footer className="bg-slate-900 text-white pt-12 pb-16 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            <div className="md:col-span-2">
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-black text-lg">
-                  {settings.storeName.charAt(0)}
+            {/* Products Grid Section */}
+            <section id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 sm:mt-12">
+              <div className="flex items-baseline justify-between mb-4 sm:mb-6">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    {selectedCategoryId
+                      ? categories.find(c => c.id === selectedCategoryId)?.name || 'Category Goods'
+                      : 'Handcrafted Goods & Harvest'}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                    {searchQuery
+                      ? `Showing results for "${searchQuery}" (${activeProducts.length} items)`
+                      : 'Freshly harvested daily and delivered to your doorstep'}
+                  </p>
                 </div>
-                <h3 className="font-extrabold text-lg text-white">{settings.storeName}</h3>
+                <span className="text-xs font-bold text-emerald-800 bg-emerald-100/80 px-3 py-1 rounded-full">
+                  {activeProducts.length} items
+                </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-400 max-w-md leading-relaxed">
-                {settings.description || settings.tagline || 'Experience the finest organic groceries, fresh farm produce, and artisanal pantry provisions.'}
-              </p>
-              <p className="text-xs text-emerald-400 font-semibold mt-3">
-                Direct Delivery Helpline: {settings.contactPhone}
-              </p>
+
+              {isLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+                  {[...Array(8)].map((_, i) => (
+                    <ProductSkeleton key={i} />
+                  ))}
+                </div>
+              ) : activeProducts.length === 0 ? (
+                <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs max-w-md mx-auto my-8">
+                  <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                    <span className="text-2xl">🌱</span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-800">No products found</h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Try clearing your search or switching to another category.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedCategoryId(null);
+                    }}
+                    className="mt-5 px-5 py-2 rounded-full bg-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-600/20"
+                  >
+                    Show All Goods
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+                  {activeProducts.map((prod) => (
+                    <ProductCard
+                      key={prod.id}
+                      product={prod}
+                      currencySymbol={settings.currencySymbol || '$'}
+                      onOpenDetails={(p) => handleOpenProduct(p.id)}
+                      onAddToCart={handleCardAddToCart}
+                      onBuyNow={handleCardBuyNow}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+
+          </main>
+
+          {/* Customer Footer */}
+          <footer className="bg-slate-900 text-white pt-12 pb-16 border-t border-slate-800">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                <div className="md:col-span-2">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-black text-lg">
+                      {settings.storeName.charAt(0)}
+                    </div>
+                    <h3 className="font-extrabold text-lg text-white">{settings.storeName}</h3>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-400 max-w-md leading-relaxed">
+                    {settings.description || settings.tagline || 'Experience the finest organic groceries, fresh farm produce, and artisanal pantry provisions.'}
+                  </p>
+                  <p className="text-xs text-emerald-400 font-semibold mt-3">
+                    Direct Delivery Helpline: {settings.contactPhone}
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">Customer Promise</h4>
+                  <ul className="space-y-2 text-xs text-slate-400">
+                    <li>• 100% Certified Fresh</li>
+                    <li>• Same-Day Local Dispatch</li>
+                    <li>• Secure Cash or Card on Delivery</li>
+                    <li>• Hassle-Free Freshness Guarantee</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">Staff & Management</h4>
+                  <p className="text-xs text-slate-400 mb-3">
+                    Access product catalog and live order tracking.
+                  </p>
+                  <button
+                    onClick={() => setAppMode('admin')}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold border border-slate-700 transition-colors cursor-pointer"
+                  >
+                    Open Admin Portal
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+                <p>© {new Date().getFullYear()} {settings.storeName}. All rights reserved.</p>
+                <p>Crafted with modern mobile-first design and real-time database synchronisation.</p>
+              </div>
             </div>
-
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">Customer Promise</h4>
-              <ul className="space-y-2 text-xs text-slate-400">
-                <li>• 100% Certified Fresh</li>
-                <li>• Same-Day Local Dispatch</li>
-                <li>• Secure Cash or Card on Delivery</li>
-                <li>• Hassle-Free Freshness Guarantee</li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">Staff & Management</h4>
-              <p className="text-xs text-slate-400 mb-3">
-                Access product catalog and live order tracking.
-              </p>
-              <button
-                onClick={() => setAppMode('admin')}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold border border-slate-700 transition-colors"
-              >
-                Open Admin Portal
-              </button>
-            </div>
-          </div>
-
-          <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-            <p>© {new Date().getFullYear()} {settings.storeName}. All rights reserved.</p>
-            <p>Crafted with modern mobile-first design and real-time database synchronisation.</p>
-          </div>
-        </div>
-      </footer>
-
-      {/* Product Detail Modal */}
-      {detailModalProduct && (
-        <ProductDetailModal
-          product={detailModalProduct}
-          currencySymbol={settings.currencySymbol || '$'}
-          isOpen={true}
-          onClose={() => setDetailModalProduct(null)}
-          onAddToCart={handleModalAddToCart}
-          onBuyNow={handleModalBuyNow}
-        />
+          </footer>
+        </>
       )}
 
       {/* Cart Drawer */}
@@ -509,10 +587,7 @@ export function App() {
         currencySymbol={settings.currencySymbol || '$'}
         deliveryOptions={deliveryOptions}
         onProceedToCheckout={handleProceedCartCheckout}
-        onOpenProductById={(id) => {
-          const found = products.find(p => p.id === id);
-          if (found) setDetailModalProduct(found);
-        }}
+        onOpenProductById={(id) => handleOpenProduct(id)}
       />
 
       {/* Checkout Modal */}
